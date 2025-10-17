@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const EmailMonitor = require('../../services/emailMonitor');
-const fs = require('fs');
-const path = require('path');
+const { loadConfig } = require('../../config');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,9 +16,8 @@ module.exports = {
                 return await interaction.editReply('⚠️ Email monitoring is already active!');
             }
 
-            // Read config
-            const configPath = path.join(__dirname, '..', '..', 'config.json');
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            // Load config
+            const config = loadConfig();
 
             if (!config.riot || !config.riot.email || !config.riot.emailPassword) {
                 return await interaction.editReply({
@@ -29,12 +27,16 @@ module.exports = {
 
             // Get channel for posting codes
             const channelId = config.riot.channelId;
-            const channel = interaction.client.channels.cache.get(channelId);
+            let channel = interaction.client.channels.cache.get(channelId);
 
             if (!channel) {
-                return await interaction.editReply({
-                    content: '❌ Configured channel not found. Please run `/setup-email` again.'
-                });
+                try {
+                    channel = await interaction.client.channels.fetch(channelId);
+                } catch (error) {
+                    return await interaction.editReply({
+                        content: '❌ Configured channel not found. Please run `/setup-email` again.'
+                    });
+                }
             }
 
             // Create and start email monitor

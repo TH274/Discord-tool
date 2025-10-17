@@ -1,0 +1,12 @@
+{
+	"token": "YOUR_DISCORD_BOT_TOKEN",
+	"clientId": "YOUR_CLIENT_ID",
+	"guildId": "YOUR_GUILD_ID",
+	"riot": {
+		"email": "your-email@gmail.com",
+		"emailPassword": "your-gmail-app-password",
+		"channelId": "YOUR_CHANNEL_ID",
+		"imapHost": "imap.gmail.com",
+		"imapPort": 993
+	}
+}
