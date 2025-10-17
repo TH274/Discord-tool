@@ -1,0 +1,20 @@
+node_modules/
+*.log
+.DS_Store
+
+.yarn/install-state.gz
+
+# Config files (if they contain sensitive data)
+config.local.json
+config.json
+.env
+
+# Claude Code folder
+.claude/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
