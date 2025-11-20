@@ -9,6 +9,7 @@ A Discord bot that automatically monitors your Gmail inbox for Riot Games 2FA co
 - 🔐 Secure IMAP connection to Gmail
 - ⚡ Real-time notifications when codes arrive
 - 🎮 Perfect for quick Riot Games logins
+- ☁️ Easy deployment to Render.com or other cloud platforms
 
 ## Prerequisites
 
@@ -31,7 +32,7 @@ A Discord bot that automatically monitors your Gmail inbox for Riot Games 2FA co
 
 **Important:** Use this App Password in the bot, NOT your regular Gmail password!
 
-## Installation
+## Installation (Local Development)
 
 1. Clone or download this project
 
@@ -40,24 +41,99 @@ A Discord bot that automatically monitors your Gmail inbox for Riot Games 2FA co
 npm install
 ```
 
-3. Configure `config.json`:
+3. Create `config.json` from the example:
+```bash
+cp config.example.json config.json
+```
+
+4. Edit `config.json` with your credentials:
 ```json
 {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "clientId": "YOUR_BOT_CLIENT_ID",
-    "guildId": "YOUR_GUILD_ID"
+    "guildId": "YOUR_GUILD_ID",
+    "riot": {
+        "email": "your-email@gmail.com",
+        "emailPassword": "your-gmail-app-password",
+        "channelId": "YOUR_CHANNEL_ID",
+        "imapHost": "imap.gmail.com",
+        "imapPort": 993
+    }
 }
 ```
 
-4. Deploy commands:
+5. Deploy commands:
 ```bash
 node deploy-commands.js
 ```
 
-5. Start the bot:
+6. Start the bot:
 ```bash
 node index.js
 ```
+
+## Deployment to Render.com
+
+### Step 1: Prepare Your Repository
+
+1. Push your code to GitHub (make sure `config.json` is in `.gitignore`)
+2. Only commit `config.example.json`, not `config.json`
+
+### Step 2: Create Render Service
+
+1. Go to [Render.com](https://render.com) and sign up/login
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Configure the service:
+   - **Name**: `discord-riot-bot` (or your choice)
+   - **Region**: Choose closest to you
+   - **Branch**: `main`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node index.js`
+   - **Instance Type**: Free (or paid for better uptime)
+
+### Step 3: Set Environment Variables
+
+In the Render.com dashboard, add these environment variables:
+
+| Variable | Value | Example |
+|----------|-------|---------|
+| `DISCORD_TOKEN` | Your Discord bot token | `MTQyODIxNz...` |
+| `DISCORD_CLIENT_ID` | Your bot's client ID | `1428217426104942602` |
+| `DISCORD_GUILD_ID` | Your Discord server ID | `749253588253147147` |
+| `RIOT_EMAIL` | Your Gmail address | `your-email@gmail.com` |
+| `RIOT_EMAIL_PASSWORD` | Gmail App Password | `abcd efgh ijkl mnop` |
+| `RIOT_CHANNEL_ID` | Discord channel ID | `1428291240092504075` |
+| `RIOT_IMAP_HOST` | IMAP server (optional) | `imap.gmail.com` |
+| `RIOT_IMAP_PORT` | IMAP port (optional) | `993` |
+
+### Step 4: Deploy Commands
+
+1. After the first deployment completes, go to your service's Shell tab
+2. Run: `node deploy-commands.js`
+3. This registers the slash commands with Discord
+
+### Step 5: Done!
+
+Your bot should now be online and ready to use!
+
+## Environment Variables
+
+The bot supports both `config.json` (for local development) and environment variables (for production).
+
+**Priority:** Environment variables override `config.json` values.
+
+### Required:
+- `DISCORD_TOKEN`
+- `DISCORD_CLIENT_ID`
+- `RIOT_EMAIL`
+- `RIOT_EMAIL_PASSWORD`
+- `RIOT_CHANNEL_ID`
+
+### Optional:
+- `DISCORD_GUILD_ID` (for guild-specific commands)
+- `RIOT_IMAP_HOST` (defaults to `imap.gmail.com`)
+- `RIOT_IMAP_PORT` (defaults to `993`)
 
 ## Usage
 
@@ -68,12 +144,10 @@ Run this command in Discord:
 /setup-email
   email: your-email@gmail.com
   password: your-app-password
-  channel: channel-id-for-codes
+  channel: #channel-name
 ```
 
-**To get Channel ID:**
-- Enable Developer Mode in Discord (User Settings → Advanced → Developer Mode)
-- Right-click on the channel → Copy Channel ID
+**Note:** Simply select or mention the channel from the dropdown - no need to find the channel ID!
 
 ### 2. Start Monitoring
 
