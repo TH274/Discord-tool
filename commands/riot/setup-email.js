@@ -1,6 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { SlashCommandBuilder, EmbedBuilder, ChannelType } = require('discord.js');
+const { loadConfig, saveConfig } = require('../../config');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,9 +13,10 @@ module.exports = {
             option.setName('password')
                 .setDescription('Your Gmail App Password (not regular password)')
                 .setRequired(true))
-        .addStringOption(option =>
+        .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('Channel ID where codes will be posted')
+                .setDescription('Channel where codes will be posted')
+                .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)),
 
     async execute(interaction) {
@@ -24,46 +24,50 @@ module.exports = {
 
         const email = interaction.options.getString('email');
         const password = interaction.options.getString('password');
-        const channelId = interaction.options.getString('channel');
+        const channel = interaction.options.getChannel('channel');
 
-        // Verify channel exists
-        let channel = interaction.client.channels.cache.get(channelId);
-        if (!channel) {
-            try {
-                channel = await interaction.client.channels.fetch(channelId);
-            } catch (error) {
-                return await interaction.editReply({
-                    content: '❌ Invalid channel ID. Please provide a valid channel ID or make sure the bot has access to that channel.'
-                });
-            }
+        // Verify it's a text channel
+        if (!channel || channel.type !== ChannelType.GuildText) {
+            return await interaction.editReply({
+                content: '❌ Please select a valid text channel.'
+            });
+        }
+
+        // Check if bot has permission to send messages in that channel
+        const permissions = channel.permissionsFor(interaction.client.user);
+        if (!permissions || !permissions.has('SendMessages')) {
+            return await interaction.editReply({
+                content: `❌ I don't have permission to send messages in ${channel}. Please grant me "Send Messages" permission in that channel.`
+            });
         }
 
         try {
-            // Read config
-            const configPath = path.join(__dirname, '..', '..', 'config.json');
-            let config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            // Load current config
+            const config = loadConfig();
 
-            // Update config
+            // Update riot config
             config.riot = {
                 email: email,
                 emailPassword: password,
-                channelId: channelId,
+                channelId: channel.id,
                 imapHost: 'imap.gmail.com',
                 imapPort: 993
             };
 
-            // Save config
-            fs.writeFileSync(configPath, JSON.stringify(config, null, '\t'));
+            // Save config (only works in local dev, not production)
+            const saved = saveConfig(config);
 
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('✅ Email Setup Complete')
-                .setDescription('Your email credentials have been saved.')
+                .setDescription(saved
+                    ? 'Your email credentials have been saved locally.'
+                    : 'Configuration updated. Note: In production, you need to set environment variables on Render.com.')
                 .addFields(
                     { name: 'Email', value: email, inline: true },
-                    { name: 'Channel', value: `<#${channelId}>`, inline: true }
+                    { name: 'Channel', value: `${channel}`, inline: true }
                 )
-                .setFooter({ text: 'Use /start-monitor to begin monitoring' })
+                .setFooter({ text: saved ? 'Use /start-monitor to begin monitoring' : 'Restart the bot for changes to take effect' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
