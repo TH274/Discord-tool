@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+require('dotenv').config();
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
-const { token } = require('./config.json');
+const { connectToDatabase } = require('./db/database');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.cooldowns = new Collection();
@@ -37,4 +38,23 @@ for (const file of eventFiles) {
 	}
 }
 
-client.login(token);
+async function startBot() {
+  try {
+    // Connect to MongoDB first
+    await connectToDatabase();
+    
+    // Then start your Discord bot
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      console.error('ERROR: DISCORD_TOKEN environment variable is not defined!');
+      process.exit(1);
+    }
+    
+    client.login(token);
+  } catch (error) {
+    console.error('Failed to start bot:', error);
+    process.exit(1);
+  }
+}
+
+startBot();
