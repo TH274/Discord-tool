@@ -1,75 +1,58 @@
-// Configuration loader - supports both config.json and environment variables
-const fs = require('fs');
-const path = require('path');
+const { connectToDatabase } = require('./db/database');
 
-function loadConfig() {
-    // Try to load from config.json first (for local development)
-    const configPath = path.join(__dirname, 'config.json');
-    let config = {};
+async function loadConfig() {
+    const db = await connectToDatabase();
+    const collection = db.collection("config");
 
-    if (fs.existsSync(configPath)) {
-        try {
-            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            console.log('Loaded configuration from config.json');
-        } catch (error) {
-            console.warn('Failed to load config.json:', error.message);
-        }
+    // Get config document
+    let config = await collection.findOne({ _id: "main" });
+
+    if (!config) {
+        console.warn("⚠ No config found, creating empty config document...");
+
+        config = {
+            _id: "main",
+            token: process.env.DISCORD_TOKEN || "",
+            clientId: process.env.DISCORD_CLIENT_ID || "",
+            guildId: process.env.DISCORD_GUILD_ID || "",
+            riot: {
+                email: "",
+                emailPassword: "",
+                channelId: "",
+                imapHost: "imap.gmail.com",
+                imapPort: 993
+            }
+        };
+
+        await collection.insertOne(config);
     }
 
-    // Override with environment variables (for production/Render.com)
-    const finalConfig = {
+    return {
         token: process.env.DISCORD_TOKEN || config.token,
         clientId: process.env.DISCORD_CLIENT_ID || config.clientId,
         guildId: process.env.DISCORD_GUILD_ID || config.guildId,
         riot: {
-            email: process.env.RIOT_EMAIL || config.riot?.email || '',
-            emailPassword: process.env.RIOT_EMAIL_PASSWORD || config.riot?.emailPassword || '',
-            channelId: process.env.RIOT_CHANNEL_ID || config.riot?.channelId || '',
-            imapHost: process.env.RIOT_IMAP_HOST || config.riot?.imapHost || 'imap.gmail.com',
-            imapPort: parseInt(process.env.RIOT_IMAP_PORT || config.riot?.imapPort || '993', 10)
+            email: process.env.RIOT_EMAIL || config.riot?.email || "",
+            emailPassword: process.env.RIOT_EMAIL_PASSWORD || config.riot?.emailPassword || "",
+            channelId: process.env.RIOT_CHANNEL_ID || config.riot?.channelId || "",
+            imapHost: process.env.RIOT_IMAP_HOST || config.riot?.imapHost || "imap.gmail.com",
+            imapPort: parseInt(process.env.RIOT_IMAP_PORT || config.riot?.imapPort || 993, 10)
         }
     };
-
-    // Validate required fields
-    if (!finalConfig.token) {
-        throw new Error('Missing DISCORD_TOKEN - set it in config.json or environment variable');
-    }
-    if (!finalConfig.clientId) {
-        throw new Error('Missing DISCORD_CLIENT_ID - set it in config.json or environment variable');
-    }
-
-    return finalConfig;
 }
 
-function saveConfig(newConfig) {
-    const configPath = path.join(__dirname, 'config.json');
+async function saveConfig(newConfig) {
+    const db = await connectToDatabase();
+    const collection = db.collection("config");
 
-    // If we're using environment variables (production), don't save to file
-    if (process.env.DISCORD_TOKEN) {
-        console.log('Running in production mode - config changes not saved to file');
-        return false;
-    }
+    await collection.updateOne(
+        { _id: "main" },
+        { $set: newConfig },
+        { upsert: true }
+    );
 
-    // Load existing config
-    let config = {};
-    if (fs.existsSync(configPath)) {
-        try {
-            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        } catch (error) {
-            console.warn('Failed to load existing config.json:', error.message);
-        }
-    }
-
-    // Merge with new config
-    const updatedConfig = { ...config, ...newConfig };
-
-    // Save to file
-    fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, '\t'));
-    console.log('Configuration saved to config.json');
+    console.log("Config saved to MongoDB");
     return true;
 }
 
-module.exports = {
-    loadConfig,
-    saveConfig
-};
+module.exports = { loadConfig, saveConfig };
