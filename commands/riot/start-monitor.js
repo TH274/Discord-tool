@@ -11,21 +11,23 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            // Check if already monitoring
             if (interaction.client.emailMonitor && interaction.client.emailMonitor.isMonitoring) {
                 return await interaction.editReply('⚠️ Email monitoring is already active!');
             }
 
-            // Load config
-            const config = loadConfig();
+            const config = await loadConfig();
 
-            if (!config.riot || !config.riot.email || !config.riot.emailPassword) {
+            if (
+                !config.riot ||
+                !config.riot.email ||
+                !config.riot.emailPassword ||
+                !config.riot.channelId
+            ) {
                 return await interaction.editReply({
-                    content: '❌ Email not configured. Please use `/setup-email` first.'
+                    content: '❌ Email not configured. Use `/setup-email` first.'
                 });
             }
 
-            // Get channel for posting codes
             const channelId = config.riot.channelId;
             let channel = interaction.client.channels.cache.get(channelId);
 
@@ -39,20 +41,22 @@ module.exports = {
                 }
             }
 
-            // Create and start email monitor
             const monitor = new EmailMonitor(config.riot);
             interaction.client.emailMonitor = monitor;
 
-            // Listen for codes
             monitor.on('codeFound', async (data) => {
                 const codeEmbed = new EmbedBuilder()
                     .setColor(0xFF4655)
                     .setTitle('🔐 Riot 2FA Code Received')
                     .setDescription(`**Code:** \`${data.code}\``)
                     .addFields(
-                        { name: 'Subject', value: data.subject || 'N/A', inline: false },
+                        { name: 'Subject', value: data.subject || 'N/A' },
                         { name: 'From', value: data.from || 'N/A', inline: true },
-                        { name: 'Received', value: `<t:${Math.floor(data.date.getTime() / 1000)}:R>`, inline: true }
+                        {
+                            name: 'Received',
+                            value: `<t:${Math.floor(data.date.getTime() / 1000)}:R>`,
+                            inline: true
+                        }
                     )
                     .setTimestamp();
 
@@ -74,12 +78,12 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('✅ Email Monitoring Started')
-                .setDescription('Now monitoring your Gmail for Riot 2FA codes')
+                .setDescription('Now monitoring Gmail for Riot 2FA codes.')
                 .addFields(
                     { name: 'Email', value: config.riot.email, inline: true },
                     { name: 'Posting to', value: `<#${channelId}>`, inline: true }
                 )
-                .setFooter({ text: 'Codes will be automatically posted when received' })
+                .setFooter({ text: 'Codes will appear automatically when received.' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
