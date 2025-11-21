@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { loadConfig, saveConfig } = require('../../config');
 
 module.exports = {
@@ -11,71 +11,73 @@ module.exports = {
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('password')
-                .setDescription('Your Gmail App Password (not regular password)')
+                .setDescription('Your Gmail App Password (not your normal password)')
                 .setRequired(true))
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('Channel where codes will be posted')
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)),
-
+    
     async execute(interaction) {
-        await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral flag
+        await interaction.deferReply({ ephemeral: true });
 
         const email = interaction.options.getString('email');
         const password = interaction.options.getString('password');
         const channel = interaction.options.getChannel('channel');
 
-        // Verify it's a text channel
+        // Validate channel type
         if (!channel || channel.type !== ChannelType.GuildText) {
             return await interaction.editReply({
                 content: '❌ Please select a valid text channel.'
             });
         }
 
-        // Check if bot has permission to send messages in that channel
+        // Check bot permission
         const permissions = channel.permissionsFor(interaction.client.user);
-        if (!permissions || !permissions.has('SendMessages')) {
+        if (!permissions || !permissions.has(PermissionFlagsBits.SendMessages)) {
             return await interaction.editReply({
-                content: `❌ I don't have permission to send messages in ${channel}. Please grant me "Send Messages" permission in that channel.`
+                content: `❌ I don't have permission to send messages in ${channel}.`
             });
         }
 
         try {
-            // Load current config
-            const config = loadConfig();
+            // Load current configuration from MongoDB
+            const config = await loadConfig();
 
-            // Update riot config
-            config.riot = {
-                email: email,
-                emailPassword: password,
-                channelId: channel.id,
-                imapHost: 'imap.gmail.com',
-                imapPort: 993
+            // Update Riot email configuration
+            const newConfig = {
+                riot: {
+                    email: email,
+                    emailPassword: password,
+                    channelId: channel.id,
+                    imapHost: "imap.gmail.com",
+                    imapPort: 993
+                }
             };
 
-            // Save config (only works in local dev, not production)
-            const saved = saveConfig(config);
+            // Save to MongoDB
+            await saveConfig(newConfig);
 
+            // Confirmation embed
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('✅ Email Setup Complete')
-                .setDescription(saved
-                    ? 'Your email credentials have been saved locally.'
-                    : 'Configuration updated. Note: In production, you need to set environment variables on Render.com.')
+                .setDescription('Your Riot email settings have been saved to MongoDB.')
                 .addFields(
                     { name: 'Email', value: email, inline: true },
                     { name: 'Channel', value: `${channel}`, inline: true }
                 )
-                .setFooter({ text: saved ? 'Use /start-monitor to begin monitoring' : 'Restart the bot for changes to take effect' })
+                .setFooter({ text: 'Use /start-monitor to begin monitoring emails.' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
-            console.error('Error saving config:', error);
+            console.error("Error saving email config:", error);
             await interaction.editReply({
-                content: '❌ Failed to save configuration. Check console for errors.'
+                content: '❌ Failed to save email configuration. Check logs.'
             });
         }
-    },
+    }
 };
