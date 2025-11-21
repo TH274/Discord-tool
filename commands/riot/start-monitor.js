@@ -56,7 +56,7 @@ module.exports = {
                             name: 'Received',
                             value: `<t:${Math.floor(data.date.getTime() / 1000)}:R>`,
                             inline: true
-``                        }
+                        }
                     )
                     .setTimestamp();
 
