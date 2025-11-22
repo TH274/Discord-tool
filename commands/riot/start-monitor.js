@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const EmailMonitor = require('../../services/emailMonitor');
 const { loadConfig } = require('../../config');
 
@@ -9,6 +9,11 @@ module.exports = {
 
     async execute(interaction) {
         await interaction.deferReply();
+
+        // Restrict command to server administrators
+        if (!interaction.member || !interaction.member.permissions || !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return await interaction.editReply({ content: '❌ You must be a server administrator to run this command.', ephemeral: true });
+        }
 
         try {
             if (interaction.client.emailMonitor && interaction.client.emailMonitor.isMonitoring) {

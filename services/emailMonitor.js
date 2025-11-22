@@ -1,17 +1,40 @@
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const EventEmitter = require('events');
+const fs = require('fs');
 
 class EmailMonitor extends EventEmitter {
     constructor(config) {
         super();
+        // Build TLS options based on config or environment variables.
+        // You can set `allowSelfSigned` in the stored config (boolean) or
+        // set EMAIL_ALLOW_SELF_SIGNED=true in the environment to allow
+        // self-signed certificates (insecure: use only when necessary).
+        const allowSelfSigned = (typeof config.allowSelfSigned !== 'undefined')
+            ? !!config.allowSelfSigned
+            : (process.env.RIOT_ALLOW_SELF_SIGNED === 'true');
+
+        const tlsOptions = {};
+        if (allowSelfSigned) {
+            tlsOptions.rejectUnauthorized = false;
+        }
+
+    const caPath = config.caPath || process.env.RIOT_CA_PATH || null;
+        if (caPath) {
+            try {
+                tlsOptions.ca = [fs.readFileSync(caPath)];
+            } catch (e) {
+                console.warn(`Could not read CA file at ${caPath}:`, e.message);
+            }
+        }
+
         this.config = {
             user: config.email,
             password: config.emailPassword,
             host: config.imapHost || 'imap.gmail.com',
             port: config.imapPort || 993,
             tls: true,
-            tlsOptions: { rejectUnauthorized: false }
+            tlsOptions
         };
         this.imap = null;
         this.isMonitoring = false;
@@ -22,7 +45,6 @@ class EmailMonitor extends EventEmitter {
      */
     startMonitoring() {
         if (this.isMonitoring) {
-            console.log('Already monitoring emails...');
             return;
         }
 
@@ -30,32 +52,26 @@ class EmailMonitor extends EventEmitter {
         this.imap = new Imap(this.config);
 
         this.imap.once('ready', () => {
-            console.log('Email monitor connected and ready');
             this.imap.openBox('INBOX', false, (err) => {
                 if (err) {
-                    console.error('Error opening inbox:', err);
                     this.emit('error', err);
                     return;
                 }
 
-                console.log('Monitoring inbox for Riot 2FA codes...');
                 this.emit('monitoring', { status: 'active' });
             });
         });
 
         this.imap.on('mail', (numNewMsgs) => {
-            console.log(`${numNewMsgs} new email(s) received`);
             this.checkForRiotCode();
         });
 
         this.imap.once('error', (err) => {
-            console.error('IMAP Error:', err);
             this.emit('error', err);
             this.isMonitoring = false;
         });
 
         this.imap.once('end', () => {
-            console.log('IMAP connection ended');
             this.isMonitoring = false;
             this.emit('disconnected');
         });
@@ -70,7 +86,6 @@ class EmailMonitor extends EventEmitter {
         if (this.imap) {
             this.imap.end();
             this.isMonitoring = false;
-            console.log('Email monitoring stopped');
         }
     }
 
@@ -99,11 +114,8 @@ class EmailMonitor extends EventEmitter {
                 }
 
                 if (!results || results.length === 0) {
-                    console.log('No new Riot emails found');
                     return;
                 }
-
-                console.log(`Found ${results.length} new Riot email(s)`);
 
                 // Fetch newest email(s)
                 const f = this.imap.fetch(results.slice(-1), { bodies: '', markSeen: true });
@@ -120,7 +132,7 @@ class EmailMonitor extends EventEmitter {
                             const code = this.extractCodeFromEmail(parsed.text || parsed.html);
 
                             if (code) {
-                                console.log(`Found 2FA code: ${code}`);
+                                // Emit the code event — do not log sensitive codes to console
                                 this.emit('codeFound', {
                                     code: code,
                                     subject: parsed.subject,

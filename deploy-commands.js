@@ -4,9 +4,6 @@ const { loadConfig } = require('./config');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const config = loadConfig();
-const { clientId, guildId, token } = config;
-
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
 const foldersPath = path.join(__dirname, 'commands');
@@ -28,13 +25,19 @@ for (const folder of commandFolders) {
 	}
 }
 
-// Construct and prepare an instance of the REST module
-const rest = new REST().setToken(token);
-
-// and deploy your commands!
+// Load config and deploy commands
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		const config = await loadConfig();
+		const { clientId, guildId, token } = config;
+
+		// Construct and prepare an instance of the REST module
+		const rest = new REST().setToken(token);
+
+		if (!clientId || !guildId || !token) {
+			console.error('Missing clientId, guildId or token in configuration. Aborting command deployment.');
+			return;
+		}
 
 		// The put method is used to fully refresh all commands in the guild with the current set
 		const data = await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });

@@ -1,15 +1,36 @@
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
+const fs = require('fs');
 
 class EmailService {
     constructor(config) {
+        // Build TLS options based on config or environment variables.
+        // Support `allowSelfSigned` in config or EMAIL_ALLOW_SELF_SIGNED=true in env.
+        const allowSelfSigned = (typeof config.allowSelfSigned !== 'undefined')
+            ? !!config.allowSelfSigned
+            : (process.env.RIOT_ALLOW_SELF_SIGNED === 'true');
+
+        const tlsOptions = {};
+        if (allowSelfSigned) {
+            tlsOptions.rejectUnauthorized = false;
+        }
+
+    const caPath = config.caPath || process.env.RIOT_CA_PATH || null;
+        if (caPath) {
+            try {
+                tlsOptions.ca = [fs.readFileSync(caPath)];
+            } catch (e) {
+                console.warn(`Could not read CA file at ${caPath}:`, e.message);
+            }
+        }
+
         this.config = {
             user: config.email,
             password: config.emailPassword,
             host: config.imapHost || 'imap.gmail.com',
             port: config.imapPort || 993,
             tls: true,
-            tlsOptions: { rejectUnauthorized: false }
+            tlsOptions
         };
     }
 
@@ -70,7 +91,6 @@ class EmailService {
 
                                         // Extract 2FA code from email
                                         const code = this.extractCodeFromEmail(parsed.text || parsed.html);
-                                        console.log('Extracted 2FA code:', code);
 
                                         if (code) {
                                             imap.end();
