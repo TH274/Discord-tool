@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const EmailMonitor = require('../../services/emailMonitor');
-const { loadConfig } = require('../../config');
+const { loadUserConfig } = require('../../config');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,24 +11,32 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            if (interaction.client.emailMonitor && interaction.client.emailMonitor.isMonitoring) {
-                return await interaction.editReply('⚠️ Email monitoring is already active!');
+            const discordUserId = interaction.user.id;
+            
+            // Check if user already has a monitor running
+            if (interaction.client.emailMonitors && interaction.client.emailMonitors.has(discordUserId)) {
+                const existingMonitor = interaction.client.emailMonitors.get(discordUserId);
+                if (existingMonitor.isMonitoring) {
+                    return await interaction.editReply('⚠️ You already have email monitoring active!');
+                }
             }
 
-            const config = await loadConfig();
+            // Load user-specific configuration
+            const userConfig = await loadUserConfig(discordUserId);
 
             if (
-                !config.riot ||
-                !config.riot.email ||
-                !config.riot.emailPassword ||
-                !config.riot.channelId
+                !userConfig ||
+                !userConfig.riot ||
+                !userConfig.riot.email ||
+                !userConfig.riot.emailPassword ||
+                !userConfig.riot.channelId
             ) {
                 return await interaction.editReply({
                     content: '❌ Email not configured. Use `/setup-email` first.'
                 });
             }
 
-            const channelId = config.riot.channelId;
+            const channelId = userConfig.riot.channelId;
             let channel = interaction.client.channels.cache.get(channelId);
 
             if (!channel) {
@@ -41,8 +49,13 @@ module.exports = {
                 }
             }
 
-            const monitor = new EmailMonitor(config.riot);
-            interaction.client.emailMonitor = monitor;
+            // Initialize email monitors map if it doesn't exist
+            if (!interaction.client.emailMonitors) {
+                interaction.client.emailMonitors = new Map();
+            }
+
+            const monitor = new EmailMonitor(userConfig.riot);
+            interaction.client.emailMonitors.set(discordUserId, monitor);
 
             monitor.on('codeFound', async (data) => {
                 const codeEmbed = new EmbedBuilder()
@@ -50,6 +63,7 @@ module.exports = {
                     .setTitle('🔐 Riot 2FA Code Received')
                     .setDescription(`**Code:** \`${data.code}\``)
                     .addFields(
+                        { name: 'User', value: userConfig.discordUsername, inline: true },
                         { name: 'Subject', value: data.subject || 'N/A' },
                         { name: 'From', value: data.from || 'N/A', inline: true },
                         {
@@ -64,12 +78,14 @@ module.exports = {
             });
 
             monitor.on('error', (error) => {
-                console.error('Email monitor error:', error);
+                console.error(`Email monitor error for ${userConfig.discordUsername}:`, error);
                 channel.send(`⚠️ Email monitoring error: ${error.message}`);
             });
 
             monitor.on('disconnected', () => {
-                channel.send('⚠️ Email monitoring disconnected');
+                channel.send(`⚠️ Email monitoring disconnected for ${userConfig.discordUsername}`);
+                // Clean up the monitor from the map
+                interaction.client.emailMonitors.delete(discordUserId);
             });
 
             // Start monitoring
@@ -78,10 +94,11 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('✅ Email Monitoring Started')
-                .setDescription('Now monitoring Gmail for Riot 2FA codes.')
+                .setDescription(`Now monitoring Gmail for Riot 2FA codes for ${userConfig.discordUsername}.`)
                 .addFields(
-                    { name: 'Email', value: config.riot.email, inline: true },
-                    { name: 'Posting to', value: `<#${channelId}>`, inline: true }
+                    { name: 'Email', value: userConfig.riot.email, inline: true },
+                    { name: 'Posting to', value: `<#${channelId}>`, inline: true },
+                    { name: 'User', value: userConfig.discordUsername, inline: true }
                 )
                 .setFooter({ text: 'Codes will appear automatically when received.' })
                 .setTimestamp();
