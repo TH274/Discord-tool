@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
-const { loadConfig, saveConfig } = require('../../config');
+const { saveUserConfig } = require('../../config');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -25,6 +25,8 @@ module.exports = {
         const email = interaction.options.getString('email');
         const password = interaction.options.getString('password');
         const channel = interaction.options.getChannel('channel');
+        const discordUserId = interaction.user.id;
+        const discordUsername = interaction.user.tag;
 
         // Validate channel type
         if (!channel || channel.type !== ChannelType.GuildText) {
@@ -42,31 +44,30 @@ module.exports = {
         }
 
         try {
-            // Load current configuration from MongoDB
-            const config = await loadConfig();
-
-            // Update Riot email configuration
-            const newConfig = {
-                riot: {
-                    email: email,
-                    emailPassword: password,
-                    channelId: channel.id,
-                    imapHost: "imap.gmail.com",
-                    imapPort: 993
-                }
+            // Create user-specific Riot email configuration
+            const riotConfig = {
+                email: email,
+                emailPassword: password,
+                channelId: channel.id,
+                channelName: channel.name,
+                guildId: interaction.guild.id,
+                guildName: interaction.guild.name,
+                imapHost: "imap.gmail.com",
+                imapPort: 993
             };
 
-            // Save to MongoDB
-            await saveConfig(newConfig);
+            // Save user-specific configuration to MongoDB
+            await saveUserConfig(discordUserId, discordUsername, riotConfig);
 
             // Confirmation embed
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('✅ Email Setup Complete')
-                .setDescription('Your Riot email settings have been saved to MongoDB.')
+                .setDescription(`Your Riot email settings have been saved for ${discordUsername}.`)
                 .addFields(
                     { name: 'Email', value: email, inline: true },
-                    { name: 'Channel', value: `${channel}`, inline: true }
+                    { name: 'Channel', value: `${channel}`, inline: true },
+                    { name: 'User', value: discordUsername, inline: true }
                 )
                 .setFooter({ text: 'Use /start-monitor to begin monitoring emails.' })
                 .setTimestamp();
@@ -74,7 +75,7 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            console.error("Error saving email config:", error);
+            console.error("Error saving user email config:", error);
             await interaction.editReply({
                 content: '❌ Failed to save email configuration. Check logs.'
             });

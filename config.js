@@ -1,6 +1,7 @@
 const { connectToDatabase } = require('./db/database');
 
 async function loadConfig() {
+    // Load global bot configuration (Discord tokens, etc.)
     const db = await connectToDatabase();
     const collection = db.collection("config");
 
@@ -14,14 +15,7 @@ async function loadConfig() {
             _id: "main",
             token: process.env.DISCORD_TOKEN || "",
             clientId: process.env.DISCORD_CLIENT_ID || "",
-            guildId: process.env.DISCORD_GUILD_ID || "",
-            riot: {
-                email: "",
-                emailPassword: "",
-                channelId: "",
-                imapHost: "imap.gmail.com",
-                imapPort: 993
-            }
+            guildId: process.env.DISCORD_GUILD_ID || ""
         };
 
         await collection.insertOne(config);
@@ -30,14 +24,7 @@ async function loadConfig() {
     return {
         token: process.env.DISCORD_TOKEN || config.token,
         clientId: process.env.DISCORD_CLIENT_ID || config.clientId,
-        guildId: process.env.DISCORD_GUILD_ID || config.guildId,
-        riot: {
-            email: process.env.RIOT_EMAIL || config.riot?.email || "",
-            emailPassword: process.env.RIOT_EMAIL_PASSWORD || config.riot?.emailPassword || "",
-            channelId: process.env.RIOT_CHANNEL_ID || config.riot?.channelId || "",
-            imapHost: process.env.RIOT_IMAP_HOST || config.riot?.imapHost || "imap.gmail.com",
-            imapPort: parseInt(process.env.RIOT_IMAP_PORT || config.riot?.imapPort || 993, 10)
-        }
+        guildId: process.env.DISCORD_GUILD_ID || config.guildId
     };
 }
 
@@ -51,8 +38,74 @@ async function saveConfig(newConfig) {
         { upsert: true }
     );
 
-    console.log("Config saved to MongoDB");
+    console.log("Global config saved to MongoDB");
     return true;
 }
 
-module.exports = { loadConfig, saveConfig };
+async function loadUserConfig(discordUserId) {
+    const db = await connectToDatabase();
+    const collection = db.collection("user_configs");
+    
+    let config = await collection.findOne({ discordUserId });
+    
+    if (!config) {
+        return null; // No config found for this user
+    }
+    
+    return config;
+}
+
+async function saveUserConfig(discordUserId, discordUsername, riotConfig) {
+    const db = await connectToDatabase();
+    const collection = db.collection("user_configs");
+    
+    await collection.updateOne(
+        { discordUserId },
+        {
+            $set: {
+                discordUserId,
+                discordUsername,
+                riot: riotConfig,
+                updatedAt: new Date()
+            },
+            $setOnInsert: {
+                createdAt: new Date()
+            }
+        },
+        { upsert: true }
+    );
+
+    console.log(`User config saved for ${discordUsername} (${discordUserId})`);
+    return true;
+}
+
+async function deleteUserConfig(discordUserId) {
+    const db = await connectToDatabase();
+    const collection = db.collection("user_configs");
+    
+    const result = await collection.deleteOne({ discordUserId });
+    
+    if (result.deletedCount > 0) {
+        console.log(`User config deleted for ${discordUserId}`);
+        return true;
+    }
+    
+    return false;
+}
+
+async function getAllUserConfigs() {
+    const db = await connectToDatabase();
+    const collection = db.collection("user_configs");
+    
+    const configs = await collection.find({}).toArray();
+    return configs;
+}
+
+module.exports = {
+    loadConfig,
+    saveConfig,
+    loadUserConfig,
+    saveUserConfig,
+    deleteUserConfig,
+    getAllUserConfigs
+};

@@ -6,6 +6,8 @@ const { connectToDatabase } = require('./db/database');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.cooldowns = new Collection();
+// Initialize email monitors map for per-user monitoring
+client.emailMonitors = new Map();
 
 client.commands = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
@@ -56,5 +58,19 @@ async function startBot() {
     process.exit(1);
   }
 }
+
+// Graceful shutdown - stop all email monitors
+process.on('SIGINT', () => {
+    console.log('Shutting down bot...');
+    if (client.emailMonitors) {
+        for (const [userId, monitor] of client.emailMonitors) {
+            if (monitor.isMonitoring) {
+                monitor.stopMonitoring();
+                console.log(`Stopped email monitor for user ${userId}`);
+            }
+        }
+    }
+    process.exit(0);
+});
 
 startBot();
