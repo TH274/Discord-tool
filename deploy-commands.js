@@ -1,11 +1,27 @@
 const { REST, Routes } = require('discord.js');
 require('dotenv').config();
-const { loadConfig } = require('./config');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const config = loadConfig();
+// Use environment variables directly for deploy-commands
+const config = {
+    token: process.env.DISCORD_TOKEN,
+    clientId: process.env.DISCORD_CLIENT_ID,
+    guildId: process.env.DISCORD_GUILD_ID
+};
 const { clientId, guildId, token } = config;
+
+// Add debugging to verify token is loaded
+console.log('Config loaded:', {
+    token: token ? 'TOKEN_PRESENT' : 'TOKEN_MISSING',
+    clientId,
+    guildId
+});
+
+if (!token) {
+    console.error('ERROR: Discord token is missing! Check your .env file.');
+    process.exit(1);
+}
 
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier

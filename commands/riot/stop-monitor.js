@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { loadUserConfig } = require('../../config');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -9,19 +10,35 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            // Check if monitoring
-            if (!interaction.client.emailMonitor || !interaction.client.emailMonitor.isMonitoring) {
-                return await interaction.editReply('⚠️ Email monitoring is not active.');
+            const discordUserId = interaction.user.id;
+            
+            // Check if user has a monitor running
+            if (!interaction.client.emailMonitors || !interaction.client.emailMonitors.has(discordUserId)) {
+                return await interaction.editReply('⚠️ You do not have email monitoring active.');
             }
 
+            const monitor = interaction.client.emailMonitors.get(discordUserId);
+            
+            if (!monitor.isMonitoring) {
+                return await interaction.editReply('⚠️ Your email monitoring is not currently active.');
+            }
+
+            // Get user config for display purposes
+            const userConfig = await loadUserConfig(discordUserId);
+            const username = userConfig ? userConfig.discordUsername : interaction.user.tag;
+
             // Stop monitoring
-            interaction.client.emailMonitor.stopMonitoring();
-            interaction.client.emailMonitor = null;
+            monitor.stopMonitoring();
+            interaction.client.emailMonitors.delete(discordUserId);
 
             const embed = new EmbedBuilder()
                 .setColor(0xFFA500)
                 .setTitle('🛑 Email Monitoring Stopped')
-                .setDescription('Gmail monitoring has been stopped')
+                .setDescription(`Gmail monitoring has been stopped for ${username}`)
+                .addFields(
+                    { name: 'User', value: username, inline: true },
+                    { name: 'Status', value: 'Stopped', inline: true }
+                )
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
