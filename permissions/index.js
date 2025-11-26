@@ -1,5 +1,8 @@
 const { connectToDatabase } = require('../db/database');
 
+// In-memory storage for auto-roast settings (in production, use database)
+const autoRoastSettings = new Map();
+
 // Roast-related permission functions
 async function saveCustomRoast(discordUserId, roastText, category = 'general') {
     const db = await connectToDatabase();
@@ -83,22 +86,31 @@ async function canRoastUser(interaction, targetUserId) {
 }
 
 function containsInappropriateContent(text) {
+    // More comprehensive banned words list
     const bannedWords = [
-        'racial slur', 
-        'homophobic', 
-        'transphobic', 
-        'sexist', 
-        'hate',
-        'nigger',
-        'faggot',
-        'retard',
-        'kike',
-        'spic',
-        'chink'
+        // Explicit slurs
+        'nigger', 'nigga', 'faggot', 'retard', 'kike', 'spic', 'chink',
+        // Common profanity
+        'fuck', 'shit', 'cunt', 'bitch', 'asshole', 'dick', 'pussy',
+        // Variations and creative spellings
+        'f\*ck', 'sh\*t', 'b\*tch', '@ss', 'a$$', 'fu ck', 'sh!t',
+        // homophobic/transphobic terms
+        'tranny', 'shemale', 'fag',
+        // Other offensive terms
+        'whore', 'slut', 'bastard'
     ];
     
     const lowerText = text.toLowerCase();
-    return bannedWords.some(word => lowerText.includes(word));
+    
+    // Check for exact matches and partial matches
+    return bannedWords.some(word => {
+        // Check for exact word match
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        if (regex.test(lowerText)) return true;
+        
+        // Check for partial match (to catch variations)
+        return lowerText.includes(word);
+    });
 }
 
 // Channel permission checking
@@ -171,5 +183,7 @@ module.exports = {
     
     checkCooldown,
     setCooldown,
-    getCooldownRemaining
+    getCooldownRemaining,
+    
+    autoRoastSettings
 };

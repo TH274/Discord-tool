@@ -16,7 +16,8 @@ module.exports = {
                 .addChoices(
                     { name: 'Programming', value: 'programming' },
                     { name: 'Gaming', value: 'gaming' },
-                    { name: 'General', value: 'general' }
+                    { name: 'General', value: 'general' },
+                    { name: 'Inappropriate', value: 'inappropriate' }
                 )
                 .setRequired(false)),
     

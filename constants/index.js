@@ -24,5 +24,17 @@ export const defaultRoasts = {
         "You think 'git gud' is personal advice."
     ],
     general: [
+    ],
+    inappropriate: [
+        "Your language is more toxic than your last relationship.",
+        "Did your vocabulary come from a 4chan comment section?",
+        "You swear like a sailor who just stubbed their toe.",
+        "Your mouth is filthier than a public restroom floor.",
+        "You have more curse words than a pirate with a stubbed toe.",
+        "Your language would make a sailor blush.",
+        "You communicate like you're permanently angry at your WiFi password.",
+        "Your vocabulary needs a soap sandwich.",
+        "You talk like you just discovered swear words yesterday.",
+        "Your language is spicier than a ghost pepper challenge."
     ]
 };
