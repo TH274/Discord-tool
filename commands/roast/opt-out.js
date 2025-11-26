@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { setUserOptOut, getUserOptOut } = require('../../config');
+const { setUserOptOut, getUserOptOut } = require('../../permissions');
 
 module.exports = {
     data: new SlashCommandBuilder()

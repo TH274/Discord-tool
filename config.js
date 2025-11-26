@@ -101,67 +101,11 @@ async function getAllUserConfigs() {
     return configs;
 }
 
-// Roast-related functions
-async function saveCustomRoast(discordUserId, roastText, category = 'general') {
-    const db = await connectToDatabase();
-    const collection = db.collection("custom_roasts");
-    
-    await collection.insertOne({
-        discordUserId,
-        roastText,
-        category,
-        createdAt: new Date()
-    });
-
-    console.log(`Custom roast saved for user ${discordUserId}`);
-    return true;
-}
-
-async function getCustomRoasts(category = null) {
-    const db = await connectToDatabase();
-    const collection = db.collection("custom_roasts");
-    
-    const query = category ? { category } : {};
-    const roasts = await collection.find(query).toArray();
-    return roasts.map(r => r.roastText);
-}
-
-async function setUserOptOut(discordUserId, optOut = true) {
-    const db = await connectToDatabase();
-    const collection = db.collection("user_configs");
-    
-    await collection.updateOne(
-        { discordUserId },
-        {
-            $set: {
-                'roast.optOut': optOut,
-                updatedAt: new Date()
-            }
-        },
-        { upsert: true }
-    );
-
-    console.log(`User ${discordUserId} opt-out status set to: ${optOut}`);
-    return true;
-}
-
-async function getUserOptOut(discordUserId) {
-    const db = await connectToDatabase();
-    const collection = db.collection("user_configs");
-    
-    const config = await collection.findOne({ discordUserId });
-    return config && config.roast && config.roast.optOut ? true : false;
-}
-
 module.exports = {
     loadConfig,
     saveConfig,
     loadUserConfig,
     saveUserConfig,
     deleteUserConfig,
-    getAllUserConfigs,
-    saveCustomRoast,
-    getCustomRoasts,
-    setUserOptOut,
-    getUserOptOut
+    getAllUserConfigs
 };

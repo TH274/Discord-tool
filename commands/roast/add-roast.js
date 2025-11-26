@@ -1,8 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { saveCustomRoast } = require('../../config');
+const { saveCustomRoast, containsInappropriateContent, checkCooldown } = require('../../permissions');
 
 module.exports = {
-    cooldown: 10,
     data: new SlashCommandBuilder()
         .setName('add-roast')
         .setDescription('Add a custom roast to the database')
@@ -22,16 +21,16 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
+        // Check cooldown (10 seconds)
+        if (!await checkCooldown(interaction, 'add-roast', 10000)) {
+            return;
+        }
+        
         const roastText = interaction.options.getString('roast');
         const category = interaction.options.getString('category') || 'general';
         
-        // Basic content moderation
-        const bannedWords = ['racial slur', 'homophobic', 'transphobic', 'sexist', 'hate'];
-        const containsBannedWord = bannedWords.some(word => 
-            roastText.toLowerCase().includes(word)
-        );
-        
-        if (containsBannedWord) {
+        // Content moderation
+        if (containsInappropriateContent(roastText)) {
             return await interaction.reply({
                 content: '❌ Your roast contains inappropriate content. Please keep it fun and respectful.',
                 ephemeral: true
