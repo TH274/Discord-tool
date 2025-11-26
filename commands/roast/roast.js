@@ -1,9 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getUserOptOut, getCustomRoasts } = require('../../config');
+const { canRoastUser, getCustomRoasts, checkCooldown } = require('../../permissions');
 const { defaultRoasts } = require('../../constants');
 
 module.exports = {
-    cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('roast')
         .setDescription('Roast a user with different categories')
@@ -22,18 +21,18 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
+        // Check cooldown (5 seconds)
+        if (!await checkCooldown(interaction, 'roast', 5000)) {
+            return;
+        }
+        
         const target = interaction.options.getUser('target');
         const category = interaction.options.getString('category') || 'general';
         
-        // Prevent self-roasting
-        if (target.id === interaction.user.id) {
-            return await interaction.reply("You can't roast yourself! That's my job.");
-        }
-        
-        // Check if target has opted out
-        const targetOptedOut = await getUserOptOut(target.id);
-        if (targetOptedOut) {
-            return await interaction.reply(`**${target.username}** has opted out of being roasted. Respect their decision!`);
+        // Check if user can be roasted
+        const canRoast = await canRoastUser(interaction, target.id);
+        if (!canRoast.allowed) {
+            return await interaction.reply(canRoast.reason);
         }
         
         try {

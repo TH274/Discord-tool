@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { loadUserConfig, getAllUserConfigs } = require('../../config');
+const { hasAdminPermission } = require('../../permissions');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -58,13 +59,11 @@ module.exports = {
             }
 
             // Get all active monitors (admin/moderator only)
-            const member = await interaction.guild.members.fetch(interaction.user.id);
-            const hasAdminPermission = member.permissions.has('Administrator') || 
-                                     member.permissions.has('ManageGuild');
+            const isAdmin = await hasAdminPermission(interaction);
 
             let allMonitorsEmbed = null;
             
-            if (hasAdminPermission) {
+            if (isAdmin) {
                 try {
                     const allConfigs = await getAllUserConfigs();
                     const activeMonitors = [];
