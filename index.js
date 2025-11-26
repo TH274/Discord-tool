@@ -4,7 +4,13 @@ require('dotenv').config();
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { connectToDatabase } = require('./db/database');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 client.cooldowns = new Collection();
 // Initialize email monitors map for per-user monitoring
 client.emailMonitors = new Map();
