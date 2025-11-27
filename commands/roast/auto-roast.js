@@ -38,8 +38,6 @@ module.exports = {
         const guildId = interaction.guild.id;
         
         try {
-            // For now, we'll use a simple in-memory storage
-            // In a production environment, you'd want to store this in your database
             const { autoRoastSettings } = require('../../permissions');
             
             switch (subcommand) {

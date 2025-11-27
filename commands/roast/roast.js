@@ -22,28 +22,23 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        // Check cooldown (5 seconds)
-        if (!await checkCooldown(interaction, 'roast', 5000)) {
+        if (!await checkCooldown(interaction, 'roast', 3000)) {
             return;
         }
         
         const target = interaction.options.getUser('target');
         const category = interaction.options.getString('category') || 'general';
         
-        // Check if user can be roasted
         const canRoast = await canRoastUser(interaction, target.id);
         if (!canRoast.allowed) {
             return await interaction.reply(canRoast.reason);
         }
         
         try {
-            // Get custom roasts for this category
             const customRoasts = await getCustomRoasts(category);
             
-            // Combine default and custom roasts
             const allRoasts = [...defaultRoasts[category], ...customRoasts];
             
-            // Select random roast
             const randomRoast = allRoasts[Math.floor(Math.random() * allRoasts.length)];
             
             await interaction.reply(`**${target.username}**, ${randomRoast}`);

@@ -23,8 +23,6 @@ export const defaultRoasts = {
         "You have more excuses than kills.",
         "You think 'git gud' is personal advice."
     ],
-    general: [
-    ],
     inappropriate: [
         "Your language is more toxic than your last relationship.",
         "Did your vocabulary come from a 4chan comment section?",
