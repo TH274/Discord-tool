@@ -31,7 +31,7 @@ module.exports = {
                 
                 const randomRoast = allRoasts[Math.floor(Math.random() * allRoasts.length)];
                 
-                await message.reply(`**${message.author.username}**, ${randomRoast}`);
+                await message.reply(`${randomRoast}`);
             } catch (error) {
                 console.error('Error handling inappropriate content:', error);
             }
